@@ -1,0 +1,11 @@
+{
+    "files.eol": "\n", //LF - \r\n CRLF
+    "eslint.format.enable": true,
+    "editor.formatOnSave": true,
+    "[typescript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "always"
+        }
+    },
+}
