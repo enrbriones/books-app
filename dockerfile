@@ -1,11 +1,21 @@
-FROM node:21-alpine3.19
+# Usa una imagen oficial de Node
+FROM node:18
 
-WORKDIR /usr/src/app
+# Establece el directorio de trabajo
+WORKDIR /app
 
-COPY package.json ./
-COPY package-lock.json ./
-
+# Copia package.json e instala dependencias
+COPY package*.json ./
 RUN npm install
 
+# Copia el resto del código
 COPY . .
+
+# Compila el proyecto
+RUN npm run build
+
+# Expone el puerto (ajústalo si tu app usa otro)
 EXPOSE 3000
+
+# Comando por defecto
+CMD ["node", "dist/main"]

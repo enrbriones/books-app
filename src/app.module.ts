@@ -29,6 +29,7 @@ import { TimeoutInterceptor } from './interceptors/timeout.interceptors';
       database: envs.database,
       autoLoadModels: true,
       synchronize: true,
+      models: [User, Book, Author, Editorial, Genre],
     }),
     SequelizeModule.forFeature([User, Author, Editorial, Genre, Book]),
     BooksModule,

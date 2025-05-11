@@ -15,6 +15,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
+      transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
     }),
@@ -28,7 +29,7 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
-  await app.listen(envs.port);
+  await app.listen(envs.port, '0.0.0.0');
   console.log(`App running on port ${envs.port}`);
 }
 bootstrap();

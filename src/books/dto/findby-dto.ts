@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
-  IsBoolean,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -40,8 +39,7 @@ export class FindByDto {
   authorId?: number;
 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @Transform(({ value }) => value === 'true')
   isAvailable?: boolean;
 
   @IsOptional()

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -60,8 +61,15 @@ export class BooksService {
   }
 
   async create(createBookDto: CreateBookDto) {
-    const { title, description, authorId, editorialId, genreId, price } =
-      createBookDto;
+    const {
+      title,
+      description,
+      authorId,
+      editorialId,
+      genreId,
+      price,
+      isAvailable,
+    } = createBookDto;
     const transaction = await this.sequelize.transaction();
     try {
       const newBook = await this.bookModel.create(
@@ -72,6 +80,7 @@ export class BooksService {
           editorialId,
           genreId,
           price,
+          isAvailable,
         },
         { transaction },
       );
@@ -88,17 +97,16 @@ export class BooksService {
   }
 
   async findBy(findByDto: FindByDto) {
+    console.log('entrando al findby');
     try {
-      const {
-        page = 1,
-        pageSize = 10,
-        genreId,
-        editorialId,
-        authorId,
-        isAvailable,
-        orderBy,
-        title,
-      } = findByDto;
+      const page = findByDto.page ?? 1;
+      const pageSize = findByDto.pageSize ?? 10;
+      const genreId = findByDto.genreId;
+      const editorialId = findByDto.editorialId;
+      const authorId = findByDto.authorId;
+      const isAvailable = findByDto.isAvailable;
+      const orderBy = findByDto.orderBy;
+      const title = findByDto.title;
 
       const offset = (page - 1) * pageSize;
 
@@ -107,32 +115,38 @@ export class BooksService {
       if (genreId) whereClause.genreId = genreId;
       if (editorialId) whereClause.editorialId = editorialId;
       if (authorId) whereClause.authorId = authorId;
+
       if (typeof isAvailable === 'boolean')
         whereClause.isAvailable = isAvailable;
       if (title) {
-        whereClause.title = { [Op.iLike]: `%${title}%` }; // PostgreSQL
+        whereClause.title = { [Op.iLike]: `%${title}%` };
       }
 
-      const parsedOrderBy = orderBy?.map((entry) => {
-        const [field, dir] = entry.split(',');
-        return [field, (dir || 'ASC').toUpperCase()];
-      }) || [['title', 'ASC']];
+      console.log('whereClause:', whereClause); // Verifica la estructura del filtro
+
+      const parsedOrderBy =
+        Array.isArray(orderBy) && orderBy.length > 0
+          ? orderBy.map((entry) => this.parseOrderBy(entry))
+          : [['title', 'ASC']];
 
       const { count, rows } = await this.bookModel.findAndCountAll({
         where: whereClause,
         include: [
           {
             model: Author,
+            as: 'author',
             attributes: ['id', 'name'],
             required: true,
           },
           {
             model: Genre,
+            as: 'genre',
             attributes: ['id', 'name'],
             required: true,
           },
           {
             model: Editorial,
+            as: 'editorial',
             attributes: ['id', 'name'],
             required: true,
           },
@@ -140,6 +154,7 @@ export class BooksService {
         limit: pageSize,
         offset,
         order: parsedOrderBy as Order,
+        logging: console.log,
       });
 
       return {
@@ -149,8 +164,48 @@ export class BooksService {
         totalPages: Math.ceil(count / pageSize),
       };
     } catch (error) {
-      this.logger.error(`An error ocurred when trying to search books`);
-      throw new HttpException(error.response, error.status);
+      console.error(error);
+      this.logger.error(
+        `An error ocurred when trying to search books: ${error?.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  private parseOrderBy(entry: string): any[] {
+    const [field, dir] = entry.split(',');
+    const direction = (dir || 'ASC').toUpperCase();
+
+    if (!['ASC', 'DESC'].includes(direction)) {
+      return ['title', 'ASC']; // fallback
+    }
+
+    if (field.includes('.')) {
+      const [relation, column] = field.split('.');
+      return [
+        { model: this.getModelByAlias(relation), as: relation },
+        column,
+        direction,
+      ];
+    }
+
+    return [field, direction];
+  }
+
+  private getModelByAlias(alias: string): any {
+    switch (alias) {
+      case 'author':
+        return Author;
+      case 'genre':
+        return Genre;
+      case 'editorial':
+        return Editorial;
+      default:
+        throw new Error(`Unknown relation alias: ${alias}`);
     }
   }
 

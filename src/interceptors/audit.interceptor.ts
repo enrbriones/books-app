@@ -18,8 +18,6 @@ export class AuditInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const method = request.method;
     const user = request.user;
-    console.log('request', request);
-    console.log('user', user);
 
     const shouldLog = ['POST', 'PUT', 'DELETE'].includes(method);
 

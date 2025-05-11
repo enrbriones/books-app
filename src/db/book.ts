@@ -1,10 +1,12 @@
 import {
+  AutoIncrement,
   BelongsTo,
   Column,
   DataType,
   ForeignKey,
   Index,
   Model,
+  PrimaryKey,
   Table,
 } from 'sequelize-typescript';
 import { Author } from './author';
@@ -33,6 +35,16 @@ import { ApiProperty } from '@nestjs/swagger';
   ],
 })
 export class Book extends Model {
+  @PrimaryKey
+  @AutoIncrement
+  @Column
+  @ApiProperty({
+    example: 3,
+    description: 'Book ID',
+    uniqueItems: true,
+  })
+  declare id: number;
+
   @Column
   @ApiProperty()
   title: string;

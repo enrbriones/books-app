@@ -10,5 +10,33 @@ services:
       POSTGRES_PASSWORD: admin
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  nest-app:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASS: admin
+      DB_NAME: books
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./client:/app
+    command: npm run dev
+    depends_on:
+      - nest-app
 volumes:
   pgdata:
