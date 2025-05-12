@@ -19,12 +19,25 @@ interface OptionType {
   label: string;
 }
 
+interface Book {
+  id: number;
+  title: string;
+  author: { id: number; name: string };
+  editorial: { id: number; name: string };
+  genre: { id: number; name: string };
+  price: string;
+  isAvailable: boolean;
+  description?: string;
+}
+
 interface BookFormProps {
+  book?: Book | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
+const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
+  const [form] = Form.useForm();
   const [authors, setAuthors] = useState<OptionType[]>([]);
   const [editorials, setEditorials] = useState<OptionType[]>([]);
   const [genres, setGenres] = useState<OptionType[]>([]);
@@ -37,12 +50,11 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
 
   const token = localStorage.getItem('authToken');
 
-  // Funciones para obtener los datos desde la API
   const fetchAuthors = useCallback(async () => {
     const response = await fetch('/api/authors', {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`, // Asegúrate de agregar tu token aquí
+        Authorization: `Bearer ${token}`,
       },
     });
     const data = await response.json();
@@ -58,7 +70,7 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
     const response = await fetch('/api/editorials', {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`, // Asegúrate de agregar tu token aquí
+        Authorization: `Bearer ${token}`,
       },
     });
     const data = await response.json();
@@ -74,7 +86,7 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
     const response = await fetch('/api/genres', {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`, // Asegúrate de agregar tu token aquí
+        Authorization: `Bearer ${token}`,
       },
     });
     const data = await response.json();
@@ -86,46 +98,77 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
     );
   }, [token]);
 
-  // Llamar a las funciones cuando el componente se monta
   useEffect(() => {
     fetchAuthors();
     fetchEditorials();
     fetchGenres();
   }, [fetchAuthors, fetchEditorials, fetchGenres]);
 
+  useEffect(() => {
+    if (book) {
+      form.setFieldsValue({
+        title: book.title,
+        description: book.description || '',
+        authorId: book.author.id,
+        editorialId: book.editorial.id,
+        genreId: book.genre.id,
+        price: parseFloat(book.price),
+        isAvailable: book.isAvailable,
+      });
+    } else {
+      form.resetFields();
+      form.setFieldsValue({ isAvailable: true });
+    }
+  }, [book, form]);
+
   const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        message.error(
-          'No se encontró el token de autenticación. Por favor, inicia sesión.',
-        );
+        message.error('No se encontró el token de autenticación. Por favor, inicia sesión.');
         return;
       }
 
-      const response = await axios.post(
-        '/api/books/',
-        {
-          title: values.title,
-          description: values.description || '',
-          authorId: values.authorId,
-          editorialId: values.editorialId,
-          genreId: values.genreId,
-          price: values.price,
-          isAvailable: values.isAvailable,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      console.log('response', response);
-
-      message.success('Libro creado con éxito');
+      if (book) {
+        await axios.patch(
+          `/api/books/${book.id}`,
+          {
+            title: values.title,
+            description: values.description || '',
+            authorId: values.authorId,
+            editorialId: values.editorialId,
+            genreId: values.genreId,
+            price: values.price,
+            isAvailable: values.isAvailable,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        message.success('Libro actualizado con éxito');
+      } else {
+        await axios.post(
+          '/api/books/',
+          {
+            title: values.title,
+            description: values.description || '',
+            authorId: values.authorId,
+            editorialId: values.editorialId,
+            genreId: values.genreId,
+            price: values.price,
+            isAvailable: values.isAvailable,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        message.success('Libro creado con éxito');
+      }
       onSuccess();
     } catch (error) {
-      message.error('Error al crear el libro');
-      console.error('Error al crear el libro:', error);
+      message.error(book ? 'Error al actualizar el libro' : 'Error al crear el libro');
+      console.error(book ? 'Error updating book:' : 'Error creating book:', error);
     } finally {
       setLoading(false);
     }
@@ -145,14 +188,13 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
 
     setLoading(true);
     try {
-      const response = await axios.post(
-        `api/${modalType}`,
+      await axios.post(
+        `/api/${modalType}`,
         { name: newItemName },
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-      console.log('response', response);
 
       message.success(
         `${modalType.slice(0, 1).toUpperCase() + modalType.slice(1)} creado exitosamente`,
@@ -178,6 +220,7 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
   return (
     <>
       <Form
+        form={form}
         layout="vertical"
         onFinish={handleSubmit}
         initialValues={{
@@ -295,7 +338,7 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
             },
           ]}
         >
-          <InputNumber type="number" min={0} step="any" />
+          <InputNumber type="number" min={1} step="1" precision={0} />
         </Form.Item>
 
         <Form.Item name="isAvailable" valuePropName="checked">
@@ -304,7 +347,13 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading}>
-            Crear Libro
+            {book ? 'Actualizar Libro' : 'Crear Libro'}
+          </Button>
+          <Button
+            style={{ marginLeft: 8 }}
+            onClick={onCancel}
+          >
+            Cancelar
           </Button>
         </Form.Item>
       </Form>
@@ -314,7 +363,7 @@ const BookForm: React.FC<BookFormProps> = ({ onSuccess, onCancel }) => {
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
-          onCancel();
+          setNewItemName('');
         }}
         onOk={handleCreateNewItem}
         confirmLoading={loading}

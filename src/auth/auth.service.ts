@@ -66,8 +66,10 @@ export class AuthService {
         }),
       };
     } catch (error) {
-      console.log('error', error);
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -79,19 +81,15 @@ export class AuthService {
         where: { email: email, isActive: true },
         raw: true,
       });
-      console.log('password', password);
-      console.log('user password', user?.password);
-      console.log('user', user);
       if (!user)
         throw new HttpException(
           'User/Password not valid',
           HttpStatus.NOT_FOUND,
         );
       const isPasswordValid = bcrypt.compareSync(password, user.password);
-      console.log('isPasswordValid', isPasswordValid);
       if (!isPasswordValid) {
         throw new HttpException(
-          'User/Password not validddd',
+          'User/Password not valid',
           HttpStatus.NOT_FOUND,
         );
       }

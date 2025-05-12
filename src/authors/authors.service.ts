@@ -37,7 +37,10 @@ export class AuthorsService {
       this.logger.error(
         `An error ocurred when trying to add an author with name ${name}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -53,7 +56,10 @@ export class AuthorsService {
       };
     } catch (error) {
       this.logger.error(`An error ocurred when trying to find all authors`);
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -73,7 +79,10 @@ export class AuthorsService {
       this.logger.error(
         `An error ocurred when trying to get an author with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -108,7 +117,10 @@ export class AuthorsService {
       this.logger.error(
         `An error ocurred when trying to update an author with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -128,7 +140,10 @@ export class AuthorsService {
       this.logger.error(
         `An error ocurred when trying to delete an author with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

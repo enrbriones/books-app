@@ -4,9 +4,10 @@ import { Table, Input, Typography, message, Button, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import Navbar from '../ui/Navbar';
 import debounce from 'lodash/debounce';
-import { DownloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, EditOutlined } from '@ant-design/icons';
 import BookForm from '../ui/BookForm';
 
 const { Title } = Typography;
@@ -19,6 +20,7 @@ interface Book {
   genre: { id: number; name: string };
   price: string;
   isAvailable: boolean;
+  description?: string;
 }
 
 interface ApiResponse {
@@ -30,7 +32,6 @@ interface ApiResponse {
 
 const Books: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
-
   const [inputTitle, setInputTitle] = useState('');
   const [books, setBooks] = useState<Book[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -44,6 +45,7 @@ const Books: React.FC = () => {
     genres: { text: string; value: string }[];
   }>({ authors: [], editorials: [], genres: [] });
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
   useEffect(() => {
     const debounced = debounce(() => {
@@ -54,12 +56,11 @@ const Books: React.FC = () => {
     return () => debounced.cancel();
   }, [inputTitle]);
 
-  // Función para obtener los libros desde la API
   const fetchBooks = async (
     page: number = 1,
     size: number = 10,
     title: string = '',
-    orderBy: string = '', // Cambiado de string[] a string
+    orderBy: string = '',
     authorId?: number,
     editorialId?: number,
     genreId?: number,
@@ -69,9 +70,7 @@ const Books: React.FC = () => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        message.error(
-          'No se encontró el token de autenticación. Por favor, inicia sesión.',
-        );
+        message.error('No se encontró el token de autenticación. Por favor, inicia sesión.');
         setLoading(false);
         return;
       }
@@ -84,7 +83,7 @@ const Books: React.FC = () => {
           authorId,
           editorialId,
           genreId,
-          orderBy: orderBy || undefined, // Enviar como cadena
+          orderBy: orderBy || undefined,
           isAvailable: isAvailable,
         },
         headers: {
@@ -92,7 +91,6 @@ const Books: React.FC = () => {
         },
       });
 
-      ////////////////
       const mappedBooks = response.data.data.map((book) => ({
         ...book,
         authorName: book.author.name,
@@ -101,12 +99,9 @@ const Books: React.FC = () => {
       }));
 
       setBooks(mappedBooks);
-
-      // setBooks(response.data.data);
       setTotal(response.data.total);
       setCurrentPage(response.data.currentPage);
 
-      // Generar filtros dinámicos basados en los datos
       const uniqueAuthors = Array.from(
         new Map(
           response.data.data.map((book) => [
@@ -140,9 +135,8 @@ const Books: React.FC = () => {
     } catch (error: any) {
       if (error.response?.status === 401) {
         message.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
-        // Opcional: Limpiar token y redirigir al login
-        // localStorage.removeItem('authToken');
-        // window.location.href = '/login';
+        localStorage.removeItem('authToken');
+        window.location.href = '/login';
       } else {
         message.error('Error al cargar los libros');
       }
@@ -152,12 +146,10 @@ const Books: React.FC = () => {
     }
   };
 
-  // Cargar libros al montar el componente y cuando cambien los parámetros
   useEffect(() => {
     fetchBooks(currentPage, pageSize, searchTitle);
   }, [currentPage, pageSize, searchTitle]);
 
-  // Manejar cambios en la paginación, filtros y ordenamiento
   const handleTableChange = (
     pagination: any,
     filters: {
@@ -169,7 +161,6 @@ const Books: React.FC = () => {
     sorter: any,
   ) => {
     const { current, pageSize: newPageSize } = pagination;
-    // let orderBy = '';
 
     const fieldMap: { [key: string]: string } = {
       authorName: 'author.name',
@@ -220,7 +211,6 @@ const Books: React.FC = () => {
     );
   };
 
-  // Definir columnas de la tabla
   const columns: ColumnsType<Book> = [
     {
       title: 'ID',
@@ -234,6 +224,9 @@ const Books: React.FC = () => {
       key: 'title',
       width: 200,
       ellipsis: true,
+      render: (title: string, record: Book) => (
+        <Link to={`/books/${record.id}`}>{title}</Link>
+      ),
     },
     {
       title: 'Autor',
@@ -288,17 +281,31 @@ const Books: React.FC = () => {
       ],
       onFilter: (value, record) => record.isAvailable.toString() === value,
     },
+    {
+      title: 'Acción',
+      key: 'action',
+      width: 100,
+      render: (_, record) => (
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          onClick={() => {
+            setSelectedBook(record);
+            setIsModalVisible(true);
+          }}
+        >
+          Editar
+        </Button>
+      ),
+    },
   ];
 
-  // Download CSV
   const handleDownloadCSV = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        message.error(
-          'No se encontró el token de autenticación. Por favor, inicia sesión.',
-        );
+        message.error('No se encontró el token de autenticación. Por favor, inicia sesión.');
         setLoading(false);
         return;
       }
@@ -307,14 +314,13 @@ const Books: React.FC = () => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        responseType: 'blob', // Importante para descargar el archivo
+        responseType: 'blob',
       });
 
-      // Crear un enlace temporal para descargar el archivo
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'books.csv'); // Nombre del archivo CSV
+      link.setAttribute('download', 'libros.csv');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -328,14 +334,14 @@ const Books: React.FC = () => {
     }
   };
 
-  // Mostrar modal
   const showCreateBookModal = () => {
+    setSelectedBook(null);
     setIsModalVisible(true);
   };
 
-  // Cerrar modal
   const handleCancel = () => {
     setIsModalVisible(false);
+    setSelectedBook(null);
   };
 
   return (
@@ -403,21 +409,23 @@ const Books: React.FC = () => {
         />
       </div>
       <Modal
-        title="Crear Nuevo Libro"
+        title={selectedBook ? "Editar Libro" : "Crear Nuevo Libro"}
         open={isModalVisible}
         onCancel={handleCancel}
         footer={null}
       >
         <BookForm
+          book={selectedBook}
           onSuccess={() => {
             setIsModalVisible(false);
-            fetchBooks();
+            setSelectedBook(null);
+            fetchBooks(currentPage, pageSize, searchTitle);
             messageApi.open({
               type: 'success',
-              content: 'Libro creado con éxito',
+              content: selectedBook ? 'Libro actualizado con éxito' : 'Libro creado con éxito',
             });
           }}
-          onCancel={() => setIsModalVisible(false)}
+          onCancel={handleCancel}
         />
       </Modal>
     </>

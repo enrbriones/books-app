@@ -37,7 +37,10 @@ export class GenresService {
       this.logger.error(
         `An error ocurred when trying to add an genre with name ${name}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -53,7 +56,10 @@ export class GenresService {
       };
     } catch (error) {
       this.logger.error(`An error ocurred when trying to find all genres`);
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -73,7 +79,10 @@ export class GenresService {
       this.logger.error(
         `An error ocurred when trying to get an genre with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -107,7 +116,10 @@ export class GenresService {
       this.logger.error(
         `An error ocurred when trying to update an genre with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -127,7 +139,10 @@ export class GenresService {
       this.logger.error(
         `An error ocurred when trying to delete a genre with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

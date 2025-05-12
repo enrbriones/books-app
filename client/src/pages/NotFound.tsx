@@ -1,14 +1,12 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Title from 'antd/es/typography/Title';
+import Typography from 'antd/es/typography/Typography';
 
 const NotFound = () => {
   return (
     <div style={{ textAlign: 'center', marginTop: '50px' }}>
-      <h1>404</h1>
-      <p>Página no encontrada</p>
-      <Link to="/login" style={{ color: 'blue' }}>
-        Volver al Login
-      </Link>
+      <Title level={1}>404</Title>
+      <Typography>Página no encontrada</Typography>
     </div>
   );
 };

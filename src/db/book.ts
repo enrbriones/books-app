@@ -45,14 +45,16 @@ export class Book extends Model {
   })
   declare id: number;
 
-  @Column
+  @Column({ allowNull: false })
   @ApiProperty()
   title: string;
+
   @Column
+  @ApiProperty()
   description: string;
 
   @ForeignKey(() => Author)
-  @Column
+  @Column({ allowNull: false })
   @ApiProperty()
   @Index('idx_book_author')
   authorId: number;
@@ -61,7 +63,7 @@ export class Book extends Model {
   author: Author;
 
   @ForeignKey(() => Editorial)
-  @Column
+  @Column({ allowNull: false })
   @ApiProperty()
   @Index('idx_book_editorial')
   editorialId: number;
@@ -70,7 +72,7 @@ export class Book extends Model {
   editorial: Editorial;
 
   @ForeignKey(() => Genre)
-  @Column
+  @Column({ allowNull: false })
   @ApiProperty()
   @Index('idx_book_genre')
   genreId: number;
@@ -78,17 +80,19 @@ export class Book extends Model {
   @BelongsTo(() => Genre)
   genre: Genre;
 
-  @Column(DataType.DECIMAL)
+  @Column({ type: DataType.DECIMAL, allowNull: false })
   @ApiProperty()
   price: number;
 
   @Column({
+    allowNull: false,
     defaultValue: true,
   })
   @ApiProperty()
   isAvailable: boolean;
 
   @Column({
+    allowNull: false,
     defaultValue: true,
   })
   @ApiProperty()

@@ -9,16 +9,17 @@ import { Column, Index, Model, Table } from 'sequelize-typescript';
   ],
 })
 export class User extends Model {
-  @Column
+  @Column({ allowNull: false })
   name: string;
 
-  @Column({ unique: true })
+  @Column({ allowNull: false, unique: true })
   email: string;
 
-  @Column
+  @Column({ allowNull: false })
   password: string;
 
   @Column({
+    allowNull: false,
     defaultValue: true,
   })
   @Index('idx_user_active')

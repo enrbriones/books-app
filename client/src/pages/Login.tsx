@@ -17,13 +17,11 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      // Solicitar al backend las credenciales
       const response = await axios.post('/api/auth/login', values);
 
-      // Si la respuesta es exitosa, guardar el token en el localStorage
       if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token); // Guardar el token
-        navigate('/books'); // Redirigir a la página de libros
+        localStorage.setItem('authToken', response.data.token);
+        navigate('/books');
       }
     } catch (err: any) {
       console.log('err', err);

@@ -46,5 +46,5 @@ export class FindByDto {
   @IsArray()
   @IsString({ each: true })
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
-  orderBy?: string[]; // formato: ['price,DESC', 'title,ASC']
+  orderBy?: string[]; // format: ['price,DESC', 'title,ASC']
 }

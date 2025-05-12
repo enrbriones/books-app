@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateBookDto } from './create-book.dto';
 import { IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateBookDto extends PartialType(CreateBookDto) {
   @IsString()
@@ -30,4 +31,8 @@ export class UpdateBookDto extends PartialType(CreateBookDto) {
   @IsPositive()
   @IsOptional()
   price: number;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  isAvailable?: boolean;
 }

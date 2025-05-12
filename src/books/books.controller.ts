@@ -39,7 +39,6 @@ export class BooksController {
 
   @Get('search')
   findBy(@Query() findByDto: FindByDto) {
-    console.log('findByDto', findByDto);
     return this.booksService.findBy(findByDto);
   }
 

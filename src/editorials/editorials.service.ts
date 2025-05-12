@@ -38,7 +38,10 @@ export class EditorialsService {
       this.logger.error(
         `An error ocurred when trying to add an editorial with name ${name}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -54,7 +57,10 @@ export class EditorialsService {
       };
     } catch (error) {
       this.logger.error(`An error ocurred when trying to find all editorials`);
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -74,7 +80,10 @@ export class EditorialsService {
       this.logger.error(
         `An error ocurred when trying to get an editorial with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -108,7 +117,10 @@ export class EditorialsService {
       this.logger.error(
         `An error ocurred when trying to update an editorial with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -131,7 +143,10 @@ export class EditorialsService {
       this.logger.error(
         `An error ocurred when trying to delete an editorial with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

@@ -92,12 +92,14 @@ export class BooksService {
       };
     } catch (error) {
       this.logger.error(`An error ocurred when trying to add a new book`);
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async findBy(findByDto: FindByDto) {
-    console.log('entrando al findby');
     try {
       const page = findByDto.page ?? 1;
       const pageSize = findByDto.pageSize ?? 10;
@@ -121,8 +123,6 @@ export class BooksService {
       if (title) {
         whereClause.title = { [Op.iLike]: `%${title}%` };
       }
-
-      console.log('whereClause:', whereClause); // Verifica la estructura del filtro
 
       const parsedOrderBy =
         Array.isArray(orderBy) && orderBy.length > 0
@@ -154,7 +154,6 @@ export class BooksService {
         limit: pageSize,
         offset,
         order: parsedOrderBy as Order,
-        logging: console.log,
       });
 
       return {
@@ -181,7 +180,7 @@ export class BooksService {
     const direction = (dir || 'ASC').toUpperCase();
 
     if (!['ASC', 'DESC'].includes(direction)) {
-      return ['title', 'ASC']; // fallback
+      return ['title', 'ASC'];
     }
 
     if (field.includes('.')) {
@@ -215,7 +214,10 @@ export class BooksService {
       return { books: books, ok: true };
     } catch (error) {
       this.logger.error(`An error ocurred when trying to get all books`);
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -223,6 +225,26 @@ export class BooksService {
     try {
       const book = await this.bookModel.findOne({
         where: { id: id, isActive: true },
+        include: [
+          {
+            model: Author,
+            as: 'author',
+            attributes: ['id', 'name'],
+            required: true,
+          },
+          {
+            model: Genre,
+            as: 'genre',
+            attributes: ['id', 'name'],
+            required: true,
+          },
+          {
+            model: Editorial,
+            as: 'editorial',
+            attributes: ['id', 'name'],
+            required: true,
+          },
+        ],
       });
       if (!book) {
         throw new HttpException('Book not found', HttpStatus.NOT_FOUND);
@@ -235,13 +257,23 @@ export class BooksService {
       this.logger.error(
         `An error ocurred when trying to get a book with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async update(id: number, updateBookDto: UpdateBookDto) {
-    const { title, description, authorId, editorialId, genreId, price } =
-      updateBookDto;
+    const {
+      title,
+      description,
+      authorId,
+      editorialId,
+      genreId,
+      price,
+      isAvailable,
+    } = updateBookDto;
     const transaction = await this.sequelize.transaction();
     try {
       const oldBook = await this.bookModel.findOne({
@@ -250,7 +282,7 @@ export class BooksService {
       if (!oldBook) {
         throw new HttpException('Book not found', HttpStatus.NOT_FOUND);
       }
-      const newBook = oldBook.update(
+      const newBook = await oldBook.update(
         {
           ...(title ? { title } : {}),
           ...(description ? { description } : {}),
@@ -258,6 +290,7 @@ export class BooksService {
           ...(editorialId ? { editorialId } : {}),
           ...(genreId ? { genreId } : {}),
           ...(price ? { price } : {}),
+          ...(isAvailable !== undefined ? { isAvailable } : {}),
         },
         { transaction: transaction },
       );
@@ -272,7 +305,10 @@ export class BooksService {
       this.logger.error(
         `An error ocurred when trying to update a book with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal server error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -292,7 +328,10 @@ export class BooksService {
       this.logger.error(
         `An error ocurred when trying to delete a book with id #${id}`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -324,7 +363,10 @@ export class BooksService {
       this.logger.error(
         `An error ocurred when trying to export a books csv file`,
       );
-      throw new HttpException(error.response, error.status);
+      throw new HttpException(
+        error.response || 'Internal Server Error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

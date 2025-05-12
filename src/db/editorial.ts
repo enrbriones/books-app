@@ -10,10 +10,11 @@ import { Book } from './book';
   ],
 })
 export class Editorial extends Model {
-  @Column({ unique: true })
+  @Column({ allowNull: false, unique: true })
   name: string;
 
   @Column({
+    allowNull: false,
     defaultValue: true,
   })
   @Index('idx_editorial_active')

@@ -10,10 +10,11 @@ import { Book } from './book';
   ],
 })
 export class Author extends Model {
-  @Column
+  @Column({ allowNull: false, unique: true })
   name: string;
 
   @Column({
+    allowNull: false,
     defaultValue: true,
   })
   @Index('idx_author_active')
