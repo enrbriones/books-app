@@ -51,7 +51,7 @@ const Books: React.FC = () => {
     const debounced = debounce(() => {
       setSearchTitle(inputTitle);
       setCurrentPage(1);
-    }, 1500);
+    }, 1000);
     debounced();
     return () => debounced.cancel();
   }, [inputTitle]);

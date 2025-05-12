@@ -11,7 +11,7 @@ docker compose up --build
 ```
 
 3. Entrar a la interfaz de usuario desde http://localhost:5173/
-4. Entrar con las siguientes credenciales
+4. Ingresar con las siguientes credenciales
 
 ```
 admin@gmail.com
@@ -272,3 +272,4 @@ books-api/
 5. Se utilizó interceptors para manejar el timeout de los endpoints y también la auditoría de operaciones críticas en la app.
 6. Salvo el registro y login de usuario, los demás endpoints están protegidos con autenticación JWT.
 7. A pesar de ser una app de gestión, se implementó un endpoint de registro, con fines de testeo. Las contraseñas están hasheadas con la librería bcrypt.
+8. El buscador cuenta con un debounce de 1 segundo, tiempo prudente para permitir escribir un título de forma coherente, y a su vez mantener un número bajo de peticiones al servidor.
