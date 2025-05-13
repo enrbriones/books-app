@@ -30,14 +30,29 @@ interface ApiResponse {
   totalPages: number;
 }
 
+interface QueryParams {
+  page: number;
+  pageSize: number;
+  title: string;
+  orderBy: string;
+  authorId?: number;
+  editorialId?: number;
+  genreId?: number;
+  isAvailable?: boolean;
+}
+
 const Books: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const [inputTitle, setInputTitle] = useState('');
   const [books, setBooks] = useState<Book[]>([]);
   const [total, setTotal] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [searchTitle, setSearchTitle] = useState<string>('');
+  const [queryParams, setQueryParams] = useState<QueryParams>({
+    page: 1,
+    pageSize: 10,
+    title: '',
+    orderBy: '',
+    isAvailable: undefined,
+  });
   const [loading, setLoading] = useState<boolean>(false);
   const [filters, setFilters] = useState<{
     authors: { text: string; value: string }[];
@@ -49,18 +64,40 @@ const Books: React.FC = () => {
 
   useEffect(() => {
     const debounced = debounce(() => {
-      setSearchTitle(inputTitle);
-      setCurrentPage(1);
+      setQueryParams((prev) => ({
+        ...prev,
+        title: inputTitle,
+        page: 1,
+      }));
     }, 1000);
     debounced();
     return () => debounced.cancel();
   }, [inputTitle]);
 
+  useEffect(() => {
+    let isCurrent = true;
+    fetchBooks(
+      queryParams.page,
+      queryParams.pageSize,
+      queryParams.title,
+      queryParams.orderBy,
+      queryParams.authorId,
+      queryParams.editorialId,
+      queryParams.genreId,
+      queryParams.isAvailable,
+    ).then(() => {
+      if (!isCurrent) return;
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [queryParams]);
+
   const fetchBooks = async (
-    page: number = 1,
-    size: number = 10,
-    title: string = '',
-    orderBy: string = '',
+    page: number,
+    size: number,
+    title: string,
+    orderBy: string,
     authorId?: number,
     editorialId?: number,
     genreId?: number,
@@ -100,7 +137,6 @@ const Books: React.FC = () => {
 
       setBooks(mappedBooks);
       setTotal(response.data.total);
-      setCurrentPage(response.data.currentPage);
 
       const uniqueAuthors = Array.from(
         new Map(
@@ -145,10 +181,6 @@ const Books: React.FC = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchBooks(currentPage, pageSize, searchTitle);
-  }, [currentPage, pageSize, searchTitle]);
 
   const handleTableChange = (
     pagination: any,
@@ -197,18 +229,16 @@ const Books: React.FC = () => {
         ? filters.isAvailable[0] === 'true'
         : undefined;
 
-    setCurrentPage(current);
-    setPageSize(newPageSize);
-    fetchBooks(
-      current,
-      newPageSize,
-      searchTitle,
+    setQueryParams({
+      page: current,
+      pageSize: newPageSize,
+      title: queryParams.title,
       orderBy,
       authorId,
       editorialId,
       genreId,
       isAvailable,
-    );
+    });
   };
 
   const columns: ColumnsType<Book> = [
@@ -396,8 +426,8 @@ const Books: React.FC = () => {
           dataSource={books}
           loading={loading}
           pagination={{
-            current: currentPage,
-            pageSize,
+            current: queryParams.page,
+            pageSize: queryParams.pageSize,
             total,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
@@ -409,7 +439,7 @@ const Books: React.FC = () => {
         />
       </div>
       <Modal
-        title={selectedBook ? "Editar Libro" : "Crear Nuevo Libro"}
+        title={selectedBook ? 'Editar Libro' : 'Crear Nuevo Libro'}
         open={isModalVisible}
         onCancel={handleCancel}
         footer={null}
@@ -419,7 +449,16 @@ const Books: React.FC = () => {
           onSuccess={() => {
             setIsModalVisible(false);
             setSelectedBook(null);
-            fetchBooks(currentPage, pageSize, searchTitle);
+            fetchBooks(
+              queryParams.page,
+              queryParams.pageSize,
+              queryParams.title,
+              queryParams.orderBy,
+              queryParams.authorId,
+              queryParams.editorialId,
+              queryParams.genreId,
+              queryParams.isAvailable,
+            );
             messageApi.open({
               type: 'success',
               content: selectedBook ? 'Libro actualizado con éxito' : 'Libro creado con éxito',
