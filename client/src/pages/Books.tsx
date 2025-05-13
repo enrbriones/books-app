@@ -1,34 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { Table, Input, Typography, message, Button, Modal } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { Link } from 'react-router-dom';
 import Navbar from '../ui/Navbar';
 import debounce from 'lodash/debounce';
-import { DownloadOutlined, EditOutlined } from '@ant-design/icons';
+import { DownloadOutlined } from '@ant-design/icons';
 import BookForm from '../ui/BookForm';
+import { useSelector, useDispatch } from 'react-redux';
+import { type RootState, type AppDispatch } from '../store';
+import {
+  fetchBooks,
+  downloadBooksCSV,
+  resetError,
+} from '../store/slices/booksSlice';
+import { type Book } from '../types/book';
+import { getBooksColumns } from '../components/BooksColumns';
 
 const { Title } = Typography;
-
-interface Book {
-  id: number;
-  title: string;
-  author: { id: number; name: string };
-  editorial: { id: number; name: string };
-  genre: { id: number; name: string };
-  price: string;
-  isAvailable: boolean;
-  description?: string;
-}
-
-interface ApiResponse {
-  total: number;
-  data: Book[];
-  currentPage: number;
-  totalPages: number;
-}
 
 interface QueryParams {
   page: number;
@@ -43,9 +30,11 @@ interface QueryParams {
 
 const Books: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
+  const dispatch = useDispatch<AppDispatch>();
+  const { books, total, loading, error, filters } = useSelector(
+    (state: RootState) => state.books,
+  );
   const [inputTitle, setInputTitle] = useState('');
-  const [books, setBooks] = useState<Book[]>([]);
-  const [total, setTotal] = useState<number>(0);
   const [queryParams, setQueryParams] = useState<QueryParams>({
     page: 1,
     pageSize: 10,
@@ -53,14 +42,15 @@ const Books: React.FC = () => {
     orderBy: '',
     isAvailable: undefined,
   });
-  const [loading, setLoading] = useState<boolean>(false);
-  const [filters, setFilters] = useState<{
-    authors: { text: string; value: string }[];
-    editorials: { text: string; value: string }[];
-    genres: { text: string; value: string }[];
-  }>({ authors: [], editorials: [], genres: [] });
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      messageApi.error(error);
+      dispatch(resetError());
+    }
+  }, [error, messageApi, dispatch]);
 
   useEffect(() => {
     const debounced = debounce(() => {
@@ -75,112 +65,8 @@ const Books: React.FC = () => {
   }, [inputTitle]);
 
   useEffect(() => {
-    let isCurrent = true;
-    fetchBooks(
-      queryParams.page,
-      queryParams.pageSize,
-      queryParams.title,
-      queryParams.orderBy,
-      queryParams.authorId,
-      queryParams.editorialId,
-      queryParams.genreId,
-      queryParams.isAvailable,
-    ).then(() => {
-      if (!isCurrent) return;
-    });
-    return () => {
-      isCurrent = false;
-    };
-  }, [queryParams]);
-
-  const fetchBooks = async (
-    page: number,
-    size: number,
-    title: string,
-    orderBy: string,
-    authorId?: number,
-    editorialId?: number,
-    genreId?: number,
-    isAvailable?: boolean,
-  ) => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        message.error('No se encontró el token de autenticación. Por favor, inicia sesión.');
-        setLoading(false);
-        return;
-      }
-
-      const response = await axios.get<ApiResponse>('/api/books/search', {
-        params: {
-          page,
-          pageSize: size,
-          title: title || undefined,
-          authorId,
-          editorialId,
-          genreId,
-          orderBy: orderBy || undefined,
-          isAvailable: isAvailable,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const mappedBooks = response.data.data.map((book) => ({
-        ...book,
-        authorName: book.author.name,
-        editorialName: book.editorial.name,
-        genreName: book.genre.name,
-      }));
-
-      setBooks(mappedBooks);
-      setTotal(response.data.total);
-
-      const uniqueAuthors = Array.from(
-        new Map(
-          response.data.data.map((book) => [
-            book.author.id,
-            { text: book.author.name, value: book.author.id.toString() },
-          ]),
-        ).values(),
-      );
-      const uniqueEditorials = Array.from(
-        new Map(
-          response.data.data.map((book) => [
-            book.editorial.id,
-            { text: book.editorial.name, value: book.editorial.id.toString() },
-          ]),
-        ).values(),
-      );
-      const uniqueGenres = Array.from(
-        new Map(
-          response.data.data.map((book) => [
-            book.genre.id,
-            { text: book.genre.name, value: book.genre.id.toString() },
-          ]),
-        ).values(),
-      );
-
-      setFilters({
-        authors: uniqueAuthors,
-        editorials: uniqueEditorials,
-        genres: uniqueGenres,
-      });
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        message.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
-      } else {
-        message.error('Error al cargar los libros');
-      }
-      console.error('Error fetching books:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    dispatch(fetchBooks(queryParams));
+  }, [queryParams, dispatch]);
 
   const handleTableChange = (
     pagination: any,
@@ -203,7 +89,6 @@ const Books: React.FC = () => {
     };
 
     const sorters = Array.isArray(sorter) ? sorter : [sorter];
-
     const orderByList = sorters
       .filter((s) => s.order)
       .flatMap((s) => {
@@ -241,127 +126,18 @@ const Books: React.FC = () => {
     });
   };
 
-  const columns: ColumnsType<Book> = [
-    {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-    },
-    {
-      title: 'Título',
-      dataIndex: 'title',
-      key: 'title',
-      width: 200,
-      ellipsis: true,
-      render: (title: string, record: Book) => (
-        <Link to={`/books/${record.id}`}>{title}</Link>
-      ),
-    },
-    {
-      title: 'Autor',
-      dataIndex: 'authorName',
-      key: 'author',
-      width: 150,
-      ellipsis: true,
-      filters: filters.authors,
-      filterMultiple: false,
-      onFilter: (value, record) => record.author.id.toString() === value,
-      sorter: true,
-    },
-    {
-      title: 'Editorial',
-      dataIndex: 'editorialName',
-      key: 'editorial',
-      width: 150,
-      ellipsis: true,
-      filters: filters.editorials,
-      filterMultiple: false,
-      onFilter: (value, record) => record.editorial.id.toString() === value,
-      sorter: true,
-    },
-    {
-      title: 'Género',
-      dataIndex: 'genreName',
-      key: 'genre',
-      width: 150,
-      ellipsis: true,
-      filters: filters.genres,
-      filterMultiple: false,
-      onFilter: (value, record) => record.genre.id.toString() === value,
-      sorter: true,
-    },
-    {
-      title: 'Precio',
-      dataIndex: 'price',
-      key: 'price',
-      width: 100,
-      render: (price: string) => `$${parseFloat(price).toFixed(2)}`,
-    },
-    {
-      title: 'Disponible',
-      dataIndex: 'isAvailable',
-      key: 'isAvailable',
-      width: 100,
-      render: (isAvailable: boolean) => (isAvailable ? 'Sí' : 'No'),
-      filterMultiple: false,
-      filters: [
-        { text: 'Sí', value: 'true' },
-        { text: 'No', value: 'false' },
-      ],
-      onFilter: (value, record) => record.isAvailable.toString() === value,
-    },
-    {
-      title: 'Acción',
-      key: 'action',
-      width: 100,
-      render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EditOutlined />}
-          onClick={() => {
-            setSelectedBook(record);
-            setIsModalVisible(true);
-          }}
-        >
-          Editar
-        </Button>
-      ),
-    },
-  ];
+  const columns = getBooksColumns({
+    filters,
+    setSelectedBook,
+    setIsModalVisible,
+  });
 
-  const handleDownloadCSV = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        message.error('No se encontró el token de autenticación. Por favor, inicia sesión.');
-        setLoading(false);
-        return;
+  const handleDownloadCSV = () => {
+    dispatch(downloadBooksCSV()).then((result) => {
+      if (downloadBooksCSV.fulfilled.match(result)) {
+        messageApi.success('Archivo CSV descargado correctamente.');
       }
-
-      const response = await axios.get('/api/books/csv', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        responseType: 'blob',
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'libros.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      message.success('Archivo CSV descargado correctamente.');
-    } catch (error: any) {
-      message.error('Error al descargar el archivo CSV.');
-      console.error('Error downloading CSV:', error);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const showCreateBookModal = () => {
@@ -387,7 +163,6 @@ const Books: React.FC = () => {
         }}
       >
         <Title level={4}>Listado de libros</Title>
-
         <div
           style={{
             display: 'flex',
@@ -403,7 +178,6 @@ const Books: React.FC = () => {
             style={{ marginBottom: 16, maxWidth: 300 }}
             allowClear
           />
-
           <div>
             <Button
               type="primary"
@@ -449,19 +223,12 @@ const Books: React.FC = () => {
           onSuccess={() => {
             setIsModalVisible(false);
             setSelectedBook(null);
-            fetchBooks(
-              queryParams.page,
-              queryParams.pageSize,
-              queryParams.title,
-              queryParams.orderBy,
-              queryParams.authorId,
-              queryParams.editorialId,
-              queryParams.genreId,
-              queryParams.isAvailable,
-            );
+            dispatch(fetchBooks(queryParams));
             messageApi.open({
               type: 'success',
-              content: selectedBook ? 'Libro actualizado con éxito' : 'Libro creado con éxito',
+              content: selectedBook
+                ? 'Libro actualizado con éxito'
+                : 'Libro creado con éxito',
             });
           }}
           onCancel={handleCancel}
