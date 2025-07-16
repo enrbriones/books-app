@@ -7,6 +7,9 @@ export interface Book {
   price: string;
   isAvailable: boolean;
   description?: string;
+  authorName?: string;
+  editorialName?: string;
+  genreName?: string;
 }
 
 export interface ApiResponse {

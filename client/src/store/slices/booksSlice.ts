@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-import { type Book, type ApiResponse } from '../../types/book';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
+import type { Book, ApiResponse } from '../../types/book';
+import api, { handleApiError } from '../../services/api';
+import type { RootState } from '..';
 
 interface QueryParams {
   page: number;
@@ -34,6 +34,40 @@ const initialState: BooksState = {
   filters: { authors: [], editorials: [], genres: [] },
 };
 
+// Selectores memorizados
+export const selectBooks = (state: RootState) => state.books.books;
+export const selectTotal = (state: RootState) => state.books.total;
+export const selectLoading = (state: RootState) => state.books.loading;
+export const selectError = (state: RootState) => state.books.error;
+
+export const selectFilters = createSelector(
+  (state: RootState) => state.books.filters,
+  (filters) => filters
+);
+
+export const selectFilteredBooks = createSelector(
+  [selectBooks, (_state: RootState, filter: string) => filter],
+  (books, filter) => {
+    if (!filter) return books;
+    const searchTerm = filter.toLowerCase();
+    return books.filter(book => 
+      book.title.toLowerCase().includes(searchTerm) ||
+      book.author.name.toLowerCase().includes(searchTerm)
+    );
+  }
+);
+
+// Tipos para los errores
+interface ApiError {
+  response?: {
+    status: number;
+    data?: {
+      message: string;
+    };
+  };
+  message: string;
+}
+
 export const fetchBooks = createAsyncThunk<
   ApiResponse,
   QueryParams,
@@ -45,7 +79,7 @@ export const fetchBooks = createAsyncThunk<
       return rejectWithValue('No se encontró el token de autenticación.');
     }
 
-    const response = await axios.get<ApiResponse>('/api/books/search', {
+    const response = await api.get<ApiResponse>('/books/search', {
       params: {
         page: params.page,
         pageSize: params.pageSize,
@@ -56,21 +90,19 @@ export const fetchBooks = createAsyncThunk<
         orderBy: params.orderBy || undefined,
         isAvailable: params.isAvailable,
       },
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 401) {
+  } catch (error) {
+    const apiError = error as ApiError;
+    if (apiError.response?.status === 401) {
       localStorage.removeItem('authToken');
       window.location.href = '/login';
       return rejectWithValue(
         'Sesión expirada. Por favor, inicia sesión nuevamente.',
       );
     }
-    return rejectWithValue('Error al cargar los libros.');
+    return rejectWithValue(handleApiError(error));
   }
 });
 
@@ -85,23 +117,27 @@ export const downloadBooksCSV = createAsyncThunk<
       return rejectWithValue('No se encontró el token de autenticación.');
     }
 
-    const response = await axios.get('/api/books/csv', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const response = await api.get('/books/csv', {
       responseType: 'blob',
     });
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'libros.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } catch (error: any) {
-    console.error(error);
-    return rejectWithValue('Error al descargar el archivo CSV.');
+    // Crear y descargar el archivo
+    const downloadFile = (blob: Blob, filename: string) => {
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    };
+
+    downloadFile(new Blob([response.data]), 'libros.csv');
+  } catch (error) {
+    const apiError = error as ApiError;
+    console.error('Error al descargar CSV:', apiError);
+    return rejectWithValue(handleApiError(error));
   }
 });
 

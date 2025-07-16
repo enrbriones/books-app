@@ -8,6 +8,7 @@
 ```
 cp .env.template .env
 docker compose up --build
+docker compose up (si ya está buildeado y sólo queremos levantar)
 ```
 
 3. Entrar a la interfaz de usuario desde http://localhost:5173/

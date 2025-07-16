@@ -1,118 +1,106 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Form,
-  Input,
-  Button,
-  Select,
-  Modal,
-  message,
-  Checkbox,
-  InputNumber,
-} from 'antd';
-import axios from 'axios';
+import { type FC, useEffect, useState } from 'react';
+import { Form, Input, Button, Select, message, InputNumber, Modal } from 'antd';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { 
+  fetchAuthors, 
+  fetchEditorials, 
+  fetchGenres,
+  createAuthor,
+  createEditorial,
+  createGenre
+} from '../store/slices/resourcesSlice';
+import api from '../utils/api';
 
 const { TextArea } = Input;
 
-interface OptionType {
-  value: number;
-  label: string;
-}
+// Resource types are now imported from types/book.ts
 
-interface Book {
-  id: number;
+import { type Book as BookType } from '../types/book';
+
+type Book = Omit<BookType, 'price'> & {
+  price: number;
+};
+
+interface FormValues {
   title: string;
-  author: { id: number; name: string };
-  editorial: { id: number; name: string };
-  genre: { id: number; name: string };
-  price: string;
+  description: string;
+  authorId: number;
+  editorialId: number;
+  genreId: number;
+  price: number;
   isAvailable: boolean;
-  description?: string;
 }
 
 interface BookFormProps {
-  book?: Book | null;
+  book?: Book;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
-  const [form] = Form.useForm();
-  const [authors, setAuthors] = useState<OptionType[]>([]);
-  const [editorials, setEditorials] = useState<OptionType[]>([]);
-  const [genres, setGenres] = useState<OptionType[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [modalType, setModalType] = useState<
-    'authors' | 'editorials' | 'genres'
-  >('authors');
-  const [newItemName, setNewItemName] = useState<string>('');
+interface ResourceNames {
+  singular: string;
+  plural: string;
+  gender: 'masculine' | 'feminine';
+}
 
-  const token = localStorage.getItem('authToken');
+const resourceNames: Record<'authors' | 'editorials' | 'genres', ResourceNames> = {
+  authors: {
+    singular: 'autor',
+    plural: 'autores',
+    gender: 'masculine',
+  },
+  editorials: {
+    singular: 'editorial',
+    plural: 'editoriales',
+    gender: 'feminine',
+  },
+  genres: {
+    singular: 'género',
+    plural: 'géneros',
+    gender: 'masculine',
+  },
+};
 
-  const fetchAuthors = useCallback(async () => {
-    const response = await fetch('/api/authors', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const data = await response.json();
-    setAuthors(
-      data.authors.map((author: any) => ({
-        value: author.id,
-        label: author.name,
-      })),
-    );
-  }, [token]);
+const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
+  const [form] = Form.useForm<FormValues>();
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<'authors' | 'editorials' | 'genres'>('authors');
+  const [newItemName, setNewItemName] = useState('');
 
-  const fetchEditorials = useCallback(async () => {
-    const response = await fetch('/api/editorials', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const data = await response.json();
-    setEditorials(
-      data.editorials.map((editorial: any) => ({
-        value: editorial.id,
-        label: editorial.name,
-      })),
-    );
-  }, [token]);
+  const dispatch = useAppDispatch();
+  const { authors, editorials, genres } = useAppSelector((state) => state.resources);
 
-  const fetchGenres = useCallback(async () => {
-    const response = await fetch('/api/genres', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const data = await response.json();
-    setGenres(
-      data.genres.map((genre: any) => ({
-        value: genre.id,
-        label: genre.name,
-      })),
-    );
-  }, [token]);
+  const authorOptions = authors.map((author) => ({
+    value: author.id,
+    label: author.name,
+  }));
+
+  const editorialOptions = editorials.map((editorial) => ({
+    value: editorial.id,
+    label: editorial.name,
+  }));
+
+  const genreOptions = genres.map((genre) => ({
+    value: genre.id,
+    label: genre.name,
+  }));
 
   useEffect(() => {
-    fetchAuthors();
-    fetchEditorials();
-    fetchGenres();
-  }, [fetchAuthors, fetchEditorials, fetchGenres]);
+    dispatch(fetchAuthors());
+    dispatch(fetchEditorials());
+    dispatch(fetchGenres());
+  }, [dispatch]);
 
   useEffect(() => {
     if (book) {
       form.setFieldsValue({
         title: book.title,
-        description: book.description || '',
+        description: book.description,
         authorId: book.author.id,
         editorialId: book.editorial.id,
         genreId: book.genre.id,
-        price: parseFloat(book.price),
+        price: book.price,
         isAvailable: book.isAvailable,
       });
     } else {
@@ -121,54 +109,37 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
     }
   }, [book, form]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        message.error('No se encontró el token de autenticación. Por favor, inicia sesión.');
-        return;
-      }
-
+      const bookData = {
+        title: values.title.trim(),
+        description: values.description?.trim() || '',
+        authorId: Number(values.authorId),
+        editorialId: Number(values.editorialId),
+        genreId: Number(values.genreId),
+        price: Number(values.price),
+        isAvailable: Boolean(values.isAvailable)
+      };
+      
       if (book) {
-        await axios.patch(
-          `/api/books/${book.id}`,
-          {
-            title: values.title,
-            description: values.description || '',
-            authorId: values.authorId,
-            editorialId: values.editorialId,
-            genreId: values.genreId,
-            price: values.price,
-            isAvailable: values.isAvailable,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        message.success('Libro actualizado con éxito');
+        const response = await api.patch(`/books/${book.id}`, bookData);
+        if (response.status === 200) {
+          message.success('Libro actualizado con éxito');
+          onSuccess();
+        }
       } else {
-        await axios.post(
-          '/api/books/',
-          {
-            title: values.title,
-            description: values.description || '',
-            authorId: values.authorId,
-            editorialId: values.editorialId,
-            genreId: values.genreId,
-            price: values.price,
-            isAvailable: values.isAvailable,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        message.success('Libro creado con éxito');
+        const response = await api.post('/books', bookData);
+        if (response.status === 201) {
+          message.success('Libro creado con éxito');
+          onSuccess();
+        }
       }
-      onSuccess();
-    } catch (error) {
-      message.error(book ? 'Error al actualizar el libro' : 'Error al crear el libro');
-      console.error(book ? 'Error updating book:' : 'Error creating book:', error);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const errorMessage = axiosError.response?.data?.message || 'Error al procesar la operación';
+      message.error(book ? `Error al actualizar el libro: ${errorMessage}` : `Error al crear el libro: ${errorMessage}`);          console.error('Error:', axiosError.response || error);
+          setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -180,33 +151,57 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
       return;
     }
 
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      message.error('No se encontró el token de autenticación');
-      return;
-    }
-
     setLoading(true);
     try {
-      await axios.post(
-        `/api/${modalType}`,
-        { name: newItemName },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      switch (modalType) {
+        case 'authors': {
+          const newAuthor = await dispatch(createAuthor(newItemName)).unwrap();
+          if (!newAuthor) {
+            throw new Error('No se pudo crear el autor');
+          }
+          await dispatch(fetchAuthors());
+          form.setFieldsValue({ authorId: newAuthor.id });
+          setModalVisible(false);
+          setNewItemName('');
+          break;
+        }
+        case 'editorials': {
+          const newEditorial = await dispatch(createEditorial(newItemName)).unwrap();
+          if (!newEditorial) {
+            throw new Error('No se pudo crear la editorial');
+          }
+          await dispatch(fetchEditorials());
+          form.setFieldsValue({ editorialId: newEditorial.id });
+          setModalVisible(false);
+          setNewItemName('');
+          break;
+        }
+        case 'genres': {
+          const newGenre = await dispatch(createGenre(newItemName)).unwrap();
+          if (!newGenre) {
+            throw new Error('No se pudo crear el género');
+          }
+          await dispatch(fetchGenres());
+          form.setFieldsValue({ genreId: newGenre.id });
+          setModalVisible(false);
+          setNewItemName('');
+          break;
+        }
+      }
+
+      const resource = resourceNames[modalType];
+      message.success(
+        `${resource.singular.charAt(0).toUpperCase() + resource.singular.slice(1)} ${
+          resource.gender === 'masculine' ? 'creado' : 'creada'
+        } exitosamente`,
       );
 
-      message.success(
-        `${modalType.slice(0, 1).toUpperCase() + modalType.slice(1)} creado exitosamente`,
-      );
-      fetchAuthors();
-      fetchEditorials();
-      fetchGenres();
       setModalVisible(false);
       setNewItemName('');
     } catch (error) {
-      message.error(`Error al crear ${modalType}`);
-      console.error(`Error al crear ${modalType}:`, error);
+      const errorMessage = error instanceof Error ? error.message : `Error al crear ${resourceNames[modalType].singular}`;
+      message.error(errorMessage);
+      console.error(`Error creating ${modalType}:`, error);
     } finally {
       setLoading(false);
     }
@@ -223,19 +218,12 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
-        initialValues={{
-          isAvailable: true,
-        }}
+        initialValues={{ isAvailable: true }}
       >
         <Form.Item
           label="Título"
           name="title"
-          rules={[
-            {
-              required: true,
-              message: 'Por favor ingresa el título del libro',
-            },
-          ]}
+          rules={[{ required: true, message: 'Por favor ingresa el título del libro' }]}
         >
           <Input />
         </Form.Item>
@@ -250,19 +238,23 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
           rules={[{ required: true, message: 'Por favor selecciona un autor' }]}
         >
           <Select
-            options={authors}
+            options={authorOptions}
             showSearch
             allowClear
             placeholder="Selecciona un autor"
-            popupRender={(menu) => (
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            notFoundContent={null}
+            dropdownRender={(menu) => (
               <>
                 {menu}
                 <Button
                   type="link"
                   onClick={() => openCreateModal('authors')}
-                  style={{ padding: '8px 16px', textAlign: 'center' }}
+                  style={{ padding: '8px 16px', width: '100%', textAlign: 'left' }}
                 >
-                  Crear nuevo autor
+                  + Crear nuevo {resourceNames.authors.singular}
                 </Button>
               </>
             )}
@@ -272,24 +264,25 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
         <Form.Item
           label="Editorial"
           name="editorialId"
-          rules={[
-            { required: true, message: 'Por favor selecciona una editorial' },
-          ]}
+          rules={[{ required: true, message: 'Por favor selecciona una editorial' }]}
         >
           <Select
-            options={editorials}
+            options={editorialOptions}
             showSearch
             allowClear
             placeholder="Selecciona una editorial"
-            popupRender={(menu) => (
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            dropdownRender={(menu) => (
               <>
                 {menu}
                 <Button
                   type="link"
                   onClick={() => openCreateModal('editorials')}
-                  style={{ padding: '8px 16px', textAlign: 'center' }}
+                  style={{ padding: '8px 16px', width: '100%', textAlign: 'left' }}
                 >
-                  Crear nueva editorial
+                  + Crear nueva {resourceNames.editorials.singular}
                 </Button>
               </>
             )}
@@ -299,24 +292,25 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
         <Form.Item
           label="Género"
           name="genreId"
-          rules={[
-            { required: true, message: 'Por favor selecciona un género' },
-          ]}
+          rules={[{ required: true, message: 'Por favor selecciona un género' }]}
         >
           <Select
-            options={genres}
+            options={genreOptions}
             showSearch
             allowClear
             placeholder="Selecciona un género"
-            popupRender={(menu) => (
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            dropdownRender={(menu) => (
               <>
                 {menu}
                 <Button
                   type="link"
                   onClick={() => openCreateModal('genres')}
-                  style={{ padding: '8px 16px', textAlign: 'center' }}
+                  style={{ padding: '8px 16px', width: '100%', textAlign: 'left' }}
                 >
-                  Crear nuevo género
+                  + Crear nuevo {resourceNames.genres.singular}
                 </Button>
               </>
             )}
@@ -326,53 +320,61 @@ const BookForm: React.FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
         <Form.Item
           label="Precio"
           name="price"
-          rules={[
-            {
-              required: true,
-              message: 'Por favor ingresa el precio del libro',
-            },
-            {
-              type: 'number',
-              min: 1,
-              message: 'El precio debe ser mayor a cero',
-            },
-          ]}
+          rules={[{ required: true, message: 'Por favor ingresa el precio' }]}
         >
-          <InputNumber type="number" min={1} step="1" precision={0} />
+          <InputNumber
+            min={0}
+            precision={2}
+            prefix="$"
+            style={{ width: '100%' }}
+          />
         </Form.Item>
 
-        <Form.Item name="isAvailable" valuePropName="checked">
-          <Checkbox>Disponible</Checkbox>
+        <Form.Item
+          label="Disponible"
+          name="isAvailable"
+        >
+          <Select
+            options={[
+              { value: true, label: 'Disponible' },
+              { value: false, label: 'No disponible' },
+            ]}
+            defaultValue={true}
+          />
         </Form.Item>
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading}>
-            {book ? 'Actualizar Libro' : 'Crear Libro'}
+            {book ? 'Actualizar' : 'Crear'} Libro
           </Button>
-          <Button
-            style={{ marginLeft: 8 }}
-            onClick={onCancel}
-          >
+          <Button onClick={onCancel} style={{ marginLeft: 8 }}>
             Cancelar
           </Button>
         </Form.Item>
       </Form>
 
       <Modal
-        title={`Crear nuevo ${modalType}`}
+        title={`Crear ${resourceNames[modalType].singular}`}
         open={modalVisible}
+        onOk={handleCreateNewItem}
         onCancel={() => {
           setModalVisible(false);
           setNewItemName('');
         }}
-        onOk={handleCreateNewItem}
         confirmLoading={loading}
       >
-        <Input
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          placeholder={`Nombre del ${modalType}`}
-        />
+        <Form layout="vertical">
+          <Form.Item
+            label="Nombre"
+            rules={[{ required: true, message: 'Por favor ingresa el nombre' }]}
+          >
+            <Input
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder={`Ingresa el nombre del ${resourceNames[modalType].singular}`}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </>
   );

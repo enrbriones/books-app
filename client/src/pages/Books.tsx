@@ -12,6 +12,7 @@ import {
   downloadBooksCSV,
   resetError,
 } from '../store/slices/booksSlice';
+import { fetchAuthors, fetchEditorials, fetchGenres } from '../store/slices/resourcesSlice';
 import { type Book } from '../types/book';
 import { getBooksColumns } from '../components/BooksColumns';
 
@@ -31,8 +32,11 @@ interface QueryParams {
 const Books: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const dispatch = useDispatch<AppDispatch>();
-  const { books, total, loading, error, filters } = useSelector(
+  const { books, total, loading, error } = useSelector(
     (state: RootState) => state.books,
+  );
+  const { authors, editorials, genres } = useSelector(
+    (state: RootState) => state.resources
   );
   const [inputTitle, setInputTitle] = useState('');
   const [queryParams, setQueryParams] = useState<QueryParams>({
@@ -125,6 +129,18 @@ const Books: React.FC = () => {
       isAvailable,
     });
   };
+
+  const filters = {
+    authors: authors.map(author => ({ text: author.name, value: author.id.toString() })),
+    editorials: editorials.map(editorial => ({ text: editorial.name, value: editorial.id.toString() })),
+    genres: genres.map(genre => ({ text: genre.name, value: genre.id.toString() }))
+  };
+
+  useEffect(() => {
+    dispatch(fetchAuthors());
+    dispatch(fetchEditorials());
+    dispatch(fetchGenres());
+  }, [dispatch]);
 
   const columns = getBooksColumns({
     filters,
@@ -219,7 +235,10 @@ const Books: React.FC = () => {
         footer={null}
       >
         <BookForm
-          book={selectedBook}
+          book={selectedBook ? {
+            ...selectedBook,
+            price: parseFloat(selectedBook.price)
+          } : undefined}
           onSuccess={() => {
             setIsModalVisible(false);
             setSelectedBook(null);
