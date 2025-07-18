@@ -51,10 +51,10 @@ export const createAuthor = createAsyncThunk('resources/createAuthor',
   async (name: string) => {
     try {
       const { data } = await api.post('/authors', { name });
-      if (!data || !data.id) {
-        throw new Error('La respuesta del servidor no incluye los datos del autor');
+      if (!data || !data.author || !data.author.id) {
+        throw new Error('La respuesta del servidor no tiene el formato esperado');
       }
-      return data;
+      return data.author;
     } catch (error) {
       if (error instanceof Error) {
         throw error;
@@ -66,15 +66,35 @@ export const createAuthor = createAsyncThunk('resources/createAuthor',
 
 export const createEditorial = createAsyncThunk('resources/createEditorial',
   async (name: string) => {
-    const { data } = await api.post('/editorials', { name });
-    return data;
+    try {
+      const { data } = await api.post('/editorials', { name });
+      if (!data || !data.editorial || !data.editorial.id) {
+        throw new Error('La respuesta del servidor no tiene el formato esperado');
+      }
+      return data.editorial;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Error al crear la editorial');
+    }
   }
 );
 
 export const createGenre = createAsyncThunk('resources/createGenre',
   async (name: string) => {
-    const { data } = await api.post('/genres', { name });
-    return data;
+    try {
+      const { data } = await api.post('/genres', { name });
+      if (!data || !data.genre || !data.genre.id) {
+        throw new Error('La respuesta del servidor no tiene el formato esperado');
+      }
+      return data.genre;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Error al crear el género');
+    }
   }
 );
 

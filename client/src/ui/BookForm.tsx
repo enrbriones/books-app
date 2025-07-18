@@ -153,38 +153,36 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
 
     setLoading(true);
     try {
+      let result;
       switch (modalType) {
         case 'authors': {
-          const newAuthor = await dispatch(createAuthor(newItemName)).unwrap();
-          if (!newAuthor) {
-            throw new Error('No se pudo crear el autor');
+          result = await dispatch(createAuthor(newItemName)).unwrap();
+          if (result && result.id) {
+            form.setFieldsValue({ authorId: result.id });
+            setModalVisible(false);
+            setNewItemName('');
+            message.success('Autor creado exitosamente');
           }
-          await dispatch(fetchAuthors());
-          form.setFieldsValue({ authorId: newAuthor.id });
-          setModalVisible(false);
-          setNewItemName('');
           break;
         }
         case 'editorials': {
-          const newEditorial = await dispatch(createEditorial(newItemName)).unwrap();
-          if (!newEditorial) {
-            throw new Error('No se pudo crear la editorial');
+          result = await dispatch(createEditorial(newItemName)).unwrap();
+          if (result && result.id) {
+            form.setFieldsValue({ editorialId: result.id });
+            setModalVisible(false);
+            setNewItemName('');
+            message.success('Editorial creada exitosamente');
           }
-          await dispatch(fetchEditorials());
-          form.setFieldsValue({ editorialId: newEditorial.id });
-          setModalVisible(false);
-          setNewItemName('');
           break;
         }
         case 'genres': {
-          const newGenre = await dispatch(createGenre(newItemName)).unwrap();
-          if (!newGenre) {
-            throw new Error('No se pudo crear el género');
+          result = await dispatch(createGenre(newItemName)).unwrap();
+          if (result && result.id) {
+            form.setFieldsValue({ genreId: result.id });
+            setModalVisible(false);
+            setNewItemName('');
+            message.success('Género creado exitosamente');
           }
-          await dispatch(fetchGenres());
-          form.setFieldsValue({ genreId: newGenre.id });
-          setModalVisible(false);
-          setNewItemName('');
           break;
         }
       }
