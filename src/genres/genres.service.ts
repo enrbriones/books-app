@@ -22,7 +22,7 @@ export class GenresService {
         where: { name: name },
       });
       if (genreExists) {
-        throw new HttpException('Genre already exists', HttpStatus.FOUND);
+        throw new HttpException('Genre already exists', HttpStatus.CONFLICT);
       }
       const newGenre = await this.genreModel.create({
         name: name,
@@ -101,7 +101,7 @@ export class GenresService {
       if (genreExists) {
         throw new HttpException(
           'Already exists genre with this name',
-          HttpStatus.FOUND,
+          HttpStatus.CONFLICT,
         );
       }
       const newGenre = await genre.update({

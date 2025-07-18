@@ -2,6 +2,7 @@ import { type FC, useEffect, useState } from 'react';
 import { Form, Input, Button, Select, message, InputNumber } from 'antd';
 import { useResources, resourceNames } from '../hooks/useResources';
 import { CreateResourceModal } from '../components/CreateResourceModal';
+import { getErrorMessage } from '../utils/errorHandler';
 import api from '../utils/api';
 
 const { TextArea } = Input;
@@ -109,10 +110,9 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
         }
       }
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      const errorMessage = axiosError.response?.data?.message || 'Error al procesar la operación';
-      message.error(book ? `Error al actualizar el libro: ${errorMessage}` : `Error al crear el libro: ${errorMessage}`);          console.error('Error:', axiosError.response || error);
-          setLoading(false);
+      const errorMessage = getErrorMessage(error, 'libro');
+      message.error(book ? `Error al actualizar el libro: ${errorMessage}` : `Error al crear el libro: ${errorMessage}`);
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }

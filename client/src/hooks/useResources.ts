@@ -8,6 +8,7 @@ import {
   fetchEditorials,
   fetchGenres,
 } from '../store/slices/resourcesSlice';
+import { getErrorMessage } from '../utils/errorHandler';
 import type { FormInstance } from 'antd/lib/form';
 
 export type ResourceType = 'authors' | 'editorials' | 'genres';
@@ -133,53 +134,9 @@ export const useResources = (form: FormInstance): UseResourcesReturn => {
       setModalError(error);
       return { error };
     } catch (error: unknown) {
-      console.log('Error completo:', error);
+      const resourceType = resourceNames[modalType].singular;
+      const errorMessage = getErrorMessage(error, resourceType);
       
-      interface RejectValueError {
-        name?: string;
-        message?: string;
-        code?: string;
-        payload?: {
-          status?: number;
-          statusCode?: number;
-          message?: string;
-          data?: {
-            message?: string;
-            statusCode?: number;
-          };
-        };
-      }
-
-      const rejectError = error as RejectValueError;
-      if (rejectError.name === 'RejectWithValue') {
-        const payload = rejectError.payload;
-        console.log('Payload del error:', payload);
-        
-        // Para errores de recurso duplicado (302 Found)
-        if (payload?.status === 302 || payload?.statusCode === 302 || payload?.data?.statusCode === 302) {
-          const resourceType = resourceNames[modalType].singular;
-          const capitalizedType = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
-          const errorMessage = `${capitalizedType} ya existe`;
-          setModalError(errorMessage);
-          return {
-            error: errorMessage,
-            type: modalType
-          };
-        }
-        
-        // Para otros errores con mensaje
-        if (payload?.data?.message || payload?.message) {
-          const errorMessage = payload.data?.message || payload.message;
-          setModalError(errorMessage);
-          return {
-            error: errorMessage,
-            type: modalType
-          };
-        }
-      }
-      
-      // Error por defecto
-      const errorMessage = `Error al crear ${resourceNames[modalType].singular}`;
       setModalError(errorMessage);
       return { 
         error: errorMessage,

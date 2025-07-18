@@ -23,8 +23,8 @@ export class AuthorsService {
       });
       if (authorExists) {
         throw new HttpException(
-          { message: 'Author already exists', statusCode: HttpStatus.FOUND },
-          HttpStatus.FOUND,
+          { message: 'Author already exists', statusCode: HttpStatus.CONFLICT },
+          HttpStatus.CONFLICT,
         );
       }
       const newAuthor = await this.authorModel.create({
@@ -114,7 +114,7 @@ export class AuthorsService {
       if (authorExists) {
         throw new HttpException(
           'Already exists author with this name',
-          HttpStatus.FOUND,
+          HttpStatus.CONFLICT,
         );
       }
       const newAuthor = await author.update({

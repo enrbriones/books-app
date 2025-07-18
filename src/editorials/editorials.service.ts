@@ -22,7 +22,10 @@ export class EditorialsService {
         where: { name: name },
       });
       if (editorialExists) {
-        throw new HttpException('Editorial already exists', HttpStatus.FOUND);
+        throw new HttpException(
+          'Editorial already exists',
+          HttpStatus.CONFLICT,
+        );
       }
       const newEditorial = await this.editorialModel.create({
         name: name,
@@ -102,7 +105,7 @@ export class EditorialsService {
       if (editorialExists) {
         throw new HttpException(
           'Already exists editorial with this name',
-          HttpStatus.FOUND,
+          HttpStatus.CONFLICT,
         );
       }
       const newEditorial = await editorial.update({

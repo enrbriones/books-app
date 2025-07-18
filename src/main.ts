@@ -22,9 +22,25 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('CMPC Libros')
-    .setDescription('API de CMPC Libros')
+    .setTitle('CMPC Libros API')
+    .setDescription(
+      'API completa para la gestión de libros, autores, editoriales y géneros',
+    )
     .setVersion('1.0')
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      name: 'JWT',
+      description: 'Ingresa tu token JWT',
+      in: 'header',
+    })
+    .addTag('auth', 'Endpoints de autenticación')
+    .addTag('books', 'Endpoints de libros')
+    .addTag('authors', 'Endpoints de autores')
+    .addTag('editorials', 'Endpoints de editoriales')
+    .addTag('genres', 'Endpoints de géneros')
+    .addTag('app', 'Endpoints generales')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
@@ -32,4 +48,4 @@ async function bootstrap() {
   await app.listen(envs.port, '0.0.0.0');
   console.log(`App running on port ${envs.port}`);
 }
-bootstrap();
+void bootstrap();
