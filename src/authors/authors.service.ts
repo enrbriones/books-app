@@ -22,7 +22,10 @@ export class AuthorsService {
         where: { name: name },
       });
       if (authorExists) {
-        throw new HttpException('Author already exists', HttpStatus.FOUND);
+        throw new HttpException(
+          { message: 'Author already exists', statusCode: HttpStatus.FOUND },
+          HttpStatus.FOUND,
+        );
       }
       const newAuthor = await this.authorModel.create({
         name: name,
@@ -36,10 +39,19 @@ export class AuthorsService {
     } catch (error) {
       this.logger.error(
         `An error ocurred when trying to add an author with name ${name}`,
+        error,
       );
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       throw new HttpException(
-        error.response || 'Internal Server Error',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        {
+          message: 'Internal Server Error',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

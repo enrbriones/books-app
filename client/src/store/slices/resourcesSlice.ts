@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../utils/api';
+import { AxiosError } from 'axios';
 
 interface Author {
   id: number;
@@ -47,53 +48,68 @@ export const fetchGenres = createAsyncThunk('resources/fetchGenres', async () =>
   return data.genres;
 });
 
-export const createAuthor = createAsyncThunk('resources/createAuthor', 
-  async (name: string) => {
+export const createAuthor = createAsyncThunk(
+  'resources/createAuthor',
+  async (name: string, { rejectWithValue }) => {
     try {
       const { data } = await api.post('/authors', { name });
       if (!data || !data.author || !data.author.id) {
-        throw new Error('La respuesta del servidor no tiene el formato esperado');
+        return rejectWithValue({
+          status: 500,
+          data: { message: 'La respuesta del servidor no tiene el formato esperado' }
+        });
       }
       return data.author;
     } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Error al crear el autor');
+      const axiosError = error as AxiosError<{ message: string }>;
+      return rejectWithValue({
+        status: axiosError.response?.status,
+        data: axiosError.response?.data
+      });
     }
   }
 );
 
-export const createEditorial = createAsyncThunk('resources/createEditorial',
-  async (name: string) => {
+export const createEditorial = createAsyncThunk(
+  'resources/createEditorial',
+  async (name: string, { rejectWithValue }) => {
     try {
       const { data } = await api.post('/editorials', { name });
       if (!data || !data.editorial || !data.editorial.id) {
-        throw new Error('La respuesta del servidor no tiene el formato esperado');
+        return rejectWithValue({
+          status: 500,
+          data: { message: 'La respuesta del servidor no tiene el formato esperado' }
+        });
       }
       return data.editorial;
     } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Error al crear la editorial');
+      const axiosError = error as AxiosError<{ message: string }>;
+      return rejectWithValue({
+        status: axiosError.response?.status,
+        data: axiosError.response?.data
+      });
     }
   }
 );
 
-export const createGenre = createAsyncThunk('resources/createGenre',
-  async (name: string) => {
+export const createGenre = createAsyncThunk(
+  'resources/createGenre',
+  async (name: string, { rejectWithValue }) => {
     try {
       const { data } = await api.post('/genres', { name });
       if (!data || !data.genre || !data.genre.id) {
-        throw new Error('La respuesta del servidor no tiene el formato esperado');
+        return rejectWithValue({
+          status: 500,
+          data: { message: 'La respuesta del servidor no tiene el formato esperado' }
+        });
       }
       return data.genre;
     } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Error al crear el género');
+      const axiosError = error as AxiosError<{ message: string }>;
+      return rejectWithValue({
+        status: axiosError.response?.status,
+        data: axiosError.response?.data
+      });
     }
   }
 );

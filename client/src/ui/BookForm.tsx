@@ -1,14 +1,7 @@
 import { type FC, useEffect, useState } from 'react';
-import { Form, Input, Button, Select, message, InputNumber, Modal } from 'antd';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { 
-  fetchAuthors, 
-  fetchEditorials, 
-  fetchGenres,
-  createAuthor,
-  createEditorial,
-  createGenre
-} from '../store/slices/resourcesSlice';
+import { Form, Input, Button, Select, message, InputNumber } from 'antd';
+import { useResources, resourceNames } from '../hooks/useResources';
+import { CreateResourceModal } from '../components/CreateResourceModal';
 import api from '../utils/api';
 
 const { TextArea } = Input;
@@ -37,60 +30,40 @@ interface BookFormProps {
   onCancel: () => void;
 }
 
-interface ResourceNames {
-  singular: string;
-  plural: string;
-  gender: 'masculine' | 'feminine';
-}
-
-const resourceNames: Record<'authors' | 'editorials' | 'genres', ResourceNames> = {
-  authors: {
-    singular: 'autor',
-    plural: 'autores',
-    gender: 'masculine',
-  },
-  editorials: {
-    singular: 'editorial',
-    plural: 'editoriales',
-    gender: 'feminine',
-  },
-  genres: {
-    singular: 'género',
-    plural: 'géneros',
-    gender: 'masculine',
-  },
-};
+// Las interfaces y constantes de recursos se movieron a useResources.ts
 
 const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState<'authors' | 'editorials' | 'genres'>('authors');
-  const [newItemName, setNewItemName] = useState('');
+  const {
+    modalVisible,
+    modalType,
+    modalError,
+    newItemName,
+    options,
+    loading: resourceLoading,
+    handleCreateResource,
+    openCreateModal,
+    closeModal,
+    setNewItemName,
+  } = useResources(form);
 
-  const dispatch = useAppDispatch();
-  const { authors, editorials, genres } = useAppSelector((state) => state.resources);
-
-  const authorOptions = authors.map((author) => ({
-    value: author.id,
-    label: author.name,
-  }));
-
-  const editorialOptions = editorials.map((editorial) => ({
-    value: editorial.id,
-    label: editorial.name,
-  }));
-
-  const genreOptions = genres.map((genre) => ({
-    value: genre.id,
-    label: genre.name,
-  }));
-
-  useEffect(() => {
-    dispatch(fetchAuthors());
-    dispatch(fetchEditorials());
-    dispatch(fetchGenres());
-  }, [dispatch]);
+  const handleCreateItem = async () => {
+    try {
+      const result = await handleCreateResource();
+      
+      if (result.success) {
+        const resourceType = resourceNames[modalType].singular;
+        const capitalizedType = resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
+        message.success(`${capitalizedType} creado exitosamente`);
+        return true;
+      } 
+      return false;
+    } catch (err) {
+      console.error('Error en handleCreateItem:', err);
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (book) {
@@ -145,70 +118,7 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
     }
   };
 
-  const handleCreateNewItem = async () => {
-    if (!newItemName.trim()) {
-      message.error('El nombre no puede estar vacío');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let result;
-      switch (modalType) {
-        case 'authors': {
-          result = await dispatch(createAuthor(newItemName)).unwrap();
-          if (result && result.id) {
-            form.setFieldsValue({ authorId: result.id });
-            setModalVisible(false);
-            setNewItemName('');
-            message.success('Autor creado exitosamente');
-          }
-          break;
-        }
-        case 'editorials': {
-          result = await dispatch(createEditorial(newItemName)).unwrap();
-          if (result && result.id) {
-            form.setFieldsValue({ editorialId: result.id });
-            setModalVisible(false);
-            setNewItemName('');
-            message.success('Editorial creada exitosamente');
-          }
-          break;
-        }
-        case 'genres': {
-          result = await dispatch(createGenre(newItemName)).unwrap();
-          if (result && result.id) {
-            form.setFieldsValue({ genreId: result.id });
-            setModalVisible(false);
-            setNewItemName('');
-            message.success('Género creado exitosamente');
-          }
-          break;
-        }
-      }
-
-      const resource = resourceNames[modalType];
-      message.success(
-        `${resource.singular.charAt(0).toUpperCase() + resource.singular.slice(1)} ${
-          resource.gender === 'masculine' ? 'creado' : 'creada'
-        } exitosamente`,
-      );
-
-      setModalVisible(false);
-      setNewItemName('');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : `Error al crear ${resourceNames[modalType].singular}`;
-      message.error(errorMessage);
-      console.error(`Error creating ${modalType}:`, error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openCreateModal = (type: 'authors' | 'editorials' | 'genres') => {
-    setModalType(type);
-    setModalVisible(true);
-  };
+  // Las funciones de manejo de recursos se movieron a useResources
 
   return (
     <>
@@ -236,12 +146,12 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
           rules={[{ required: true, message: 'Por favor selecciona un autor' }]}
         >
           <Select
-            options={authorOptions}
+            options={options.authors}
             showSearch
             allowClear
             placeholder="Selecciona un autor"
             filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase())
             }
             notFoundContent={null}
             dropdownRender={(menu) => (
@@ -252,7 +162,7 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
                   onClick={() => openCreateModal('authors')}
                   style={{ padding: '8px 16px', width: '100%', textAlign: 'left' }}
                 >
-                  + Crear nuevo {resourceNames.authors.singular}
+                  + Crear nuevo autor
                 </Button>
               </>
             )}
@@ -265,13 +175,14 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
           rules={[{ required: true, message: 'Por favor selecciona una editorial' }]}
         >
           <Select
-            options={editorialOptions}
+            options={options.editorials}
             showSearch
             allowClear
             placeholder="Selecciona una editorial"
             filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase())
             }
+            notFoundContent={null}
             dropdownRender={(menu) => (
               <>
                 {menu}
@@ -280,7 +191,7 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
                   onClick={() => openCreateModal('editorials')}
                   style={{ padding: '8px 16px', width: '100%', textAlign: 'left' }}
                 >
-                  + Crear nueva {resourceNames.editorials.singular}
+                  + Crear nueva editorial
                 </Button>
               </>
             )}
@@ -293,13 +204,14 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
           rules={[{ required: true, message: 'Por favor selecciona un género' }]}
         >
           <Select
-            options={genreOptions}
+            options={options.genres}
             showSearch
             allowClear
             placeholder="Selecciona un género"
             filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase())
             }
+            notFoundContent={null}
             dropdownRender={(menu) => (
               <>
                 {menu}
@@ -308,7 +220,7 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
                   onClick={() => openCreateModal('genres')}
                   style={{ padding: '8px 16px', width: '100%', textAlign: 'left' }}
                 >
-                  + Crear nuevo {resourceNames.genres.singular}
+                  + Crear nuevo género
                 </Button>
               </>
             )}
@@ -351,29 +263,21 @@ const BookForm: FC<BookFormProps> = ({ book, onSuccess, onCancel }) => {
         </Form.Item>
       </Form>
 
-      <Modal
-        title={`Crear ${resourceNames[modalType].singular}`}
-        open={modalVisible}
-        onOk={handleCreateNewItem}
-        onCancel={() => {
-          setModalVisible(false);
-          setNewItemName('');
+      <CreateResourceModal
+        visible={modalVisible}
+        type={modalType}
+        loading={resourceLoading}
+        error={modalError}
+        value={newItemName}
+        onChange={setNewItemName}
+        onOk={async () => {
+          const success = await handleCreateItem();
+          if (success) {
+            closeModal();
+          }
         }}
-        confirmLoading={loading}
-      >
-        <Form layout="vertical">
-          <Form.Item
-            label="Nombre"
-            rules={[{ required: true, message: 'Por favor ingresa el nombre' }]}
-          >
-            <Input
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder={`Ingresa el nombre del ${resourceNames[modalType].singular}`}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onCancel={closeModal}
+      />
     </>
   );
 };
